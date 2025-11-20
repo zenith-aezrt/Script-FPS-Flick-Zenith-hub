@@ -298,7 +298,7 @@ MiscTab:CreateToggle({
 
 -- CREDIT TAB --------------------------------------------------
 
-CreditTab:CreateLabel("Zenith Hub FPS Flick")
+CreditTab:CreateLabel("Zenith Hub")
 CreditTab:CreateLabel("Made by aezrt")
 CreditTab:CreateLabel("Tiktok: aezrt_")
 CreditTab:CreateLabel("Thanks for using Zenith Hub!")
