@@ -1,8 +1,3 @@
---====================================================--
--- [FPS] FLICK AIMBOT V2 + HITBOX EXPANDER + BHOP + AUTO RELOAD
--- Zenith UI - FULL VERSION
---====================================================--
-
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
@@ -17,9 +12,6 @@ local ESPTab = Window:CreateTab("ESP", "box")
 local HBTab = Window:CreateTab("Hitbox", "scan")
 local MiscTab = Window:CreateTab("Misc", "settings")
 
---------------------------------------------------------
--- VARIABLES
---------------------------------------------------------
 local FlickEnabled = false
 local FlickStrength = 0.12
 local WallCheck = true
@@ -29,14 +21,11 @@ local FlickCooldown = 0.13
 local MaxDistance = 350
 local LastFlick = 0
 
--- HITBOX
 local HitboxEnabled = false
 local HitboxSize = 4
 
--- ESP
 local HighlightESP = false
 
--- MISC
 local AutoReload = false
 local BunnyHop = false
 
@@ -46,9 +35,6 @@ local RunService = game:GetService("RunService")
 local localPlayer = game.Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
---------------------------------------------------------
--- ESP HIGHLIGHT
---------------------------------------------------------
 local function applyHighlight(char)
     if not char:FindFirstChild("Highlight_Zenith") then
         local hl = Instance.new("Highlight")
@@ -83,9 +69,6 @@ task.spawn(function()
     end
 end)
 
---------------------------------------------------------
--- HITBOX EXPAND
---------------------------------------------------------
 local function expandHitbox(char)
     for _, partName in ipairs({"Head", "HumanoidRootPart"}) do
         local part = char:FindFirstChild(partName)
@@ -123,46 +106,32 @@ task.spawn(function()
     end
 end)
 
---------------------------------------------------------
--- WALL CHECK
---------------------------------------------------------
 local function isVisible(targetPart)
     if not WallCheck then return true end
-
     local params = RaycastParams.new()
     params.FilterType = Enum.RaycastFilterType.Blacklist
     params.FilterDescendantsInstances = { localPlayer.Character }
-
     local origin = camera.CFrame.Position
     local direction = (targetPart.Position - origin)
     local ray = workspace:Raycast(origin, direction, params)
-
     if not ray then return true end
     return ray.Instance:IsDescendantOf(targetPart.Parent)
 end
 
---------------------------------------------------------
--- GET CLOSEST
---------------------------------------------------------
 local function getClosest()
     local closest = nil
     local shortest = FOV
-
     for _, plr in ipairs(game.Players:GetPlayers()) do
         if plr ~= localPlayer and plr.Character then
-            
             local head = plr.Character:FindFirstChild("Head") 
             local torso = plr.Character:FindFirstChild("HumanoidRootPart")
             local part = head or torso
-
             if part then
                 if (camera.CFrame.Position - part.Position).Magnitude < MaxDistance then
                     local pos, vis = camera:WorldToViewportPoint(part.Position)
-
                     if vis and isVisible(part) then
                         local screenCenter = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
                         local targetPos = Vector2.new(pos.X, pos.Y)
-
                         local mag = (targetPos - screenCenter).Magnitude
                         if mag < shortest then
                             shortest = mag
@@ -173,46 +142,29 @@ local function getClosest()
             end
         end
     end
-
     return closest
 end
 
---------------------------------------------------------
--- FLICK ENGINE
---------------------------------------------------------
 task.spawn(function()
     while task.wait(0.01) do
         if FlickEnabled then
-
             if tick() - LastFlick < FlickCooldown then
                 continue
             end
-
             local target = getClosest()
             if target then
-                
                 local aimDir = (target.Position - camera.CFrame.Position).Unit
-
-                local adaptive = FlickStrength + math.clamp(
-                    1 - (camera.CFrame.LookVector:Dot(aimDir)), 
-                    0, 
-                    0.15
-                )
-
+                local adaptive = FlickStrength + math.clamp(1 - (camera.CFrame.LookVector:Dot(aimDir)), 0, 0.15)
                 camera.CFrame = camera.CFrame:Lerp(
                     CFrame.lookAt(camera.CFrame.Position, camera.CFrame.Position + aimDir),
                     adaptive
                 )
-
                 LastFlick = tick()
             end
         end
     end
 end)
 
---------------------------------------------------------
--- AUTO RELOAD
---------------------------------------------------------
 task.spawn(function()
     while task.wait(0.1) do
         if AutoReload then
@@ -222,7 +174,7 @@ task.spawn(function()
                 if tool and tool:FindFirstChild("Ammo") then
                     local ammo = tool.Ammo.Value
                     if ammo <= 0 then
-                        keypress(0x52)   -- R
+                        keypress(0x52)
                         task.wait(0.05)
                         keyrelease(0x52)
                     end
@@ -232,9 +184,6 @@ task.spawn(function()
     end
 end)
 
---------------------------------------------------------
--- BUNNY HOP
---------------------------------------------------------
 RunService.RenderStepped:Connect(function()
     if BunnyHop then
         if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
@@ -245,10 +194,6 @@ RunService.RenderStepped:Connect(function()
         end
     end
 end)
-
---------------------------------------------------------
--- UI
---------------------------------------------------------
 
 MainTab:CreateToggle({
     Name = "Enable Flick",
