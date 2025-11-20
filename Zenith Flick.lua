@@ -272,7 +272,7 @@ HBTab:CreateToggle({
 
 HBTab:CreateSlider({
     Name = "Hitbox Size",
-    Range = {2, 30},
+    Range = {2, 100},
     Increment = 1,
     CurrentValue = HitboxSize,
     Callback = function(v)
