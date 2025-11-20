@@ -7,15 +7,16 @@ local Window = Rayfield:CreateWindow({
 })
 
 local MainTab = Window:CreateTab("Main", "target")
-local VisualTab = Window:CreateTab("Visual", "eye")
+local CreditTab = Window:CreateTab("Credit", "info")
 local ESPTab = Window:CreateTab("ESP", "box")
 local HBTab = Window:CreateTab("Hitbox", "scan")
 local MiscTab = Window:CreateTab("Misc", "settings")
 
+-- VARIABLES ---------------------------------------------------
+
 local FlickEnabled = false
 local FlickStrength = 0.12
 local WallCheck = true
-
 local FOV = 80
 local FlickCooldown = 0.13
 local MaxDistance = 350
@@ -34,6 +35,8 @@ local RunService = game:GetService("RunService")
 
 local localPlayer = game.Players.LocalPlayer
 local camera = workspace.CurrentCamera
+
+-- ESP HIGHLIGHT ----------------------------------------------
 
 local function applyHighlight(char)
     if not char:FindFirstChild("Highlight_Zenith") then
@@ -68,6 +71,8 @@ task.spawn(function()
         updateESP()
     end
 end)
+
+-- HITBOX ------------------------------------------------------
 
 local function expandHitbox(char)
     for _, partName in ipairs({"Head", "HumanoidRootPart"}) do
@@ -105,6 +110,8 @@ task.spawn(function()
         end
     end
 end)
+
+-- FLICK AIMBOT -----------------------------------------------
 
 local function isVisible(targetPart)
     if not WallCheck then return true end
@@ -165,6 +172,8 @@ task.spawn(function()
     end
 end)
 
+-- AUTO RELOAD -----------------------------------------------
+
 task.spawn(function()
     while task.wait(0.1) do
         if AutoReload then
@@ -172,8 +181,7 @@ task.spawn(function()
             if char then
                 local tool = char:FindFirstChildOfClass("Tool")
                 if tool and tool:FindFirstChild("Ammo") then
-                    local ammo = tool.Ammo.Value
-                    if ammo <= 0 then
+                    if tool.Ammo.Value <= 0 then
                         keypress(0x52)
                         task.wait(0.05)
                         keyrelease(0x52)
@@ -183,6 +191,8 @@ task.spawn(function()
         end
     end
 end)
+
+-- BUNNY HOP ---------------------------------------------------
 
 RunService.RenderStepped:Connect(function()
     if BunnyHop then
@@ -194,6 +204,8 @@ RunService.RenderStepped:Connect(function()
         end
     end
 end)
+
+-- UI ----------------------------------------------------------
 
 MainTab:CreateToggle({
     Name = "Enable Flick",
@@ -284,4 +296,9 @@ MiscTab:CreateToggle({
     end
 })
 
-VisualTab:CreateLabel("Zenith Hub | [FPS] Flick")
+-- CREDIT TAB --------------------------------------------------
+
+CreditTab:CreateLabel("Zenith Hub FPS Flick")
+CreditTab:CreateLabel("Made by aezrt")
+CreditTab:CreateLabel("Tiktok: aezrt_")
+CreditTab:CreateLabel("Thanks for using Zenith Hub!")
