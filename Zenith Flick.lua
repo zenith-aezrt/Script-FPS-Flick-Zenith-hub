@@ -1,7 +1,6 @@
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
-
 local Window = Rayfield:CreateWindow({
-    Name = "Zenith Hub | [FPS] Flick ",
+    Name = "Zenith Hub | [FPS] Flick",
     LoadingTitle = "Zenith",
     LoadingSubtitle = "script loaded!",
 })
@@ -12,7 +11,12 @@ local ESPTab = Window:CreateTab("ESP", "box")
 local HBTab = Window:CreateTab("Hitbox", "scan")
 local MiscTab = Window:CreateTab("Misc", "settings")
 
--- VARIABLES ---------------------------------------------------
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local localPlayer = Players.LocalPlayer
+local camera = workspace.CurrentCamera
 
 local FlickEnabled = false
 local FlickStrength = 0.12
@@ -30,13 +34,31 @@ local HighlightESP = false
 local AutoReload = false
 local BunnyHop = false
 
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
+local AimbotEnabled = false
+local AimbotFOV = 120
+local AimbotSmooth = 0.25
 
-local localPlayer = game.Players.LocalPlayer
-local camera = workspace.CurrentCamera
+local ShowAimbotFOV = true
+local successDrawing, FOVCircle = pcall(function() return Drawing.new("Circle") end)
 
--- ESP HIGHLIGHT ----------------------------------------------
+if not successDrawing then
+    FOVCircle = nil
+end
+
+if FOVCircle then
+    FOVCircle.Visible = false
+    FOVCircle.Thickness = 2
+    FOVCircle.NumSides = 64
+    FOVCircle.Filled = false
+    FOVCircle.Color = Color3.fromRGB(0, 0, 0)
+end
+
+local function safeFindCharacter(plr)
+    if not plr then return nil end
+    local ch = plr.Character
+    if ch and ch.Parent then return ch end
+    return nil
+end
 
 local function applyHighlight(char)
     if not char:FindFirstChild("Highlight_Zenith") then
@@ -55,7 +77,7 @@ local function removeHighlight(char)
 end
 
 local function updateESP()
-    for _, p in ipairs(game.Players:GetPlayers()) do
+    for _, p in ipairs(Players:GetPlayers()) do
         if p ~= localPlayer and p.Character then
             if HighlightESP then
                 applyHighlight(p.Character)
@@ -72,16 +94,16 @@ task.spawn(function()
     end
 end)
 
--- HITBOX ------------------------------------------------------
-
 local function expandHitbox(char)
     for _, partName in ipairs({"Head", "HumanoidRootPart"}) do
         local part = char:FindFirstChild(partName)
         if part then
-            part.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
-            part.Transparency = 0.7
-            part.Material = Enum.Material.ForceField
-            part.CanCollide = false
+            pcall(function()
+                part.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+                part.Transparency = 0.7
+                part.Material = Enum.Material.ForceField
+                part.CanCollide = false
+            end)
         end
     end
 end
@@ -90,7 +112,7 @@ local function resetHitbox(char)
     for _, partName in ipairs({"Head", "HumanoidRootPart"}) do
         local p = char:FindFirstChild(partName)
         if p then
-            p.Size = Vector3.new(2, 1, 1)
+            p.Size = Vector3.new(2, 2, 1)
             p.Transparency = 0
             p.Material = Enum.Material.Plastic
         end
@@ -99,7 +121,7 @@ end
 
 task.spawn(function()
     while task.wait(0.4) do
-        for _, plr in ipairs(game.Players:GetPlayers()) do
+        for _, plr in ipairs(Players:GetPlayers()) do
             if plr ~= localPlayer and plr.Character then
                 if HitboxEnabled then
                     expandHitbox(plr.Character)
@@ -111,13 +133,15 @@ task.spawn(function()
     end
 end)
 
--- FLICK AIMBOT -----------------------------------------------
-
 local function isVisible(targetPart)
     if not WallCheck then return true end
     local params = RaycastParams.new()
     params.FilterType = Enum.RaycastFilterType.Blacklist
-    params.FilterDescendantsInstances = { localPlayer.Character }
+    if localPlayer.Character then
+        params.FilterDescendantsInstances = { localPlayer.Character }
+    else
+        params.FilterDescendantsInstances = {}
+    end
     local origin = camera.CFrame.Position
     local direction = (targetPart.Position - origin)
     local ray = workspace:Raycast(origin, direction, params)
@@ -125,21 +149,21 @@ local function isVisible(targetPart)
     return ray.Instance:IsDescendantOf(targetPart.Parent)
 end
 
-local function getClosest()
+local function getClosestFlick()
     local closest = nil
     local shortest = FOV
-    for _, plr in ipairs(game.Players:GetPlayers()) do
+
+    for _, plr in ipairs(Players:GetPlayers()) do
         if plr ~= localPlayer and plr.Character then
-            local head = plr.Character:FindFirstChild("Head") 
-            local torso = plr.Character:FindFirstChild("HumanoidRootPart")
-            local part = head or torso
+            local head = plr.Character:FindFirstChild("Head")
+            local part = head
             if part then
                 if (camera.CFrame.Position - part.Position).Magnitude < MaxDistance then
                     local pos, vis = camera:WorldToViewportPoint(part.Position)
                     if vis and isVisible(part) then
-                        local screenCenter = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
-                        local targetPos = Vector2.new(pos.X, pos.Y)
-                        local mag = (targetPos - screenCenter).Magnitude
+                        local center = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
+                        local target = Vector2.new(pos.X, pos.Y)
+                        local mag = (target - center).Magnitude
                         if mag < shortest then
                             shortest = mag
                             closest = part
@@ -155,16 +179,13 @@ end
 task.spawn(function()
     while task.wait(0.01) do
         if FlickEnabled then
-            if tick() - LastFlick < FlickCooldown then
-                continue
-            end
-            local target = getClosest()
+            if tick() - LastFlick < FlickCooldown then continue end
+            local target = getClosestFlick()
             if target then
                 local aimDir = (target.Position - camera.CFrame.Position).Unit
-                local adaptive = FlickStrength + math.clamp(1 - (camera.CFrame.LookVector:Dot(aimDir)), 0, 0.15)
                 camera.CFrame = camera.CFrame:Lerp(
                     CFrame.lookAt(camera.CFrame.Position, camera.CFrame.Position + aimDir),
-                    adaptive
+                    FlickStrength
                 )
                 LastFlick = tick()
             end
@@ -172,7 +193,69 @@ task.spawn(function()
     end
 end)
 
--- AUTO RELOAD -----------------------------------------------
+local function getAimbotTarget()
+    local closest = nil
+    local shortest = AimbotFOV
+    local screenCenter = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= localPlayer and plr.Character then
+            local head = plr.Character:FindFirstChild("Head")
+            local root = plr.Character:FindFirstChild("HumanoidRootPart")
+            local part = head or root
+            if part then
+                local pos, vis = camera:WorldToViewportPoint(part.Position)
+                if vis then
+                    if WallCheck then
+                        local params = RaycastParams.new()
+                        params.FilterType = Enum.RaycastFilterType.Blacklist
+                        params.FilterDescendantsInstances = { localPlayer.Character }
+
+                        local origin = camera.CFrame.Position
+                        local dir = (part.Position - origin)
+                        local ray = workspace:Raycast(origin, dir, params)
+
+                        if ray and not ray.Instance:IsDescendantOf(part.Parent) then
+                            continue
+                        end
+                    end
+
+                    local dist = (Vector2.new(pos.X, pos.Y) - screenCenter).Magnitude
+                    if dist < shortest then
+                        closest = part
+                        shortest = dist
+                    end
+                end
+            end
+        end
+    end
+
+    return closest
+end
+
+RunService.RenderStepped:Connect(function()
+    if AimbotEnabled then
+        local target = getAimbotTarget()
+        if target and target.Parent then
+            local aimDir = (target.Position - camera.CFrame.Position).Unit
+            camera.CFrame = camera.CFrame:Lerp(
+                CFrame.lookAt(camera.CFrame.Position, camera.CFrame.Position + aimDir),
+                AimbotSmooth
+            )
+        end
+    end
+end)
+
+if FOVCircle then
+    RunService.RenderStepped:Connect(function()
+        FOVCircle.Visible = ShowAimbotFOV
+        FOVCircle.Radius = AimbotFOV
+        FOVCircle.Position = Vector2.new(
+            camera.ViewportSize.X/2,
+            camera.ViewportSize.Y/2
+        )
+    end)
+end
 
 task.spawn(function()
     while task.wait(0.1) do
@@ -182,17 +265,17 @@ task.spawn(function()
                 local tool = char:FindFirstChildOfClass("Tool")
                 if tool and tool:FindFirstChild("Ammo") then
                     if tool.Ammo.Value <= 0 then
-                        keypress(0x52)
-                        task.wait(0.05)
-                        keyrelease(0x52)
+                        pcall(function()
+                            keypress(0x52)
+                            task.wait(0.05)
+                            keyrelease(0x52)
+                        end)
                     end
                 end
             end
         end
     end
 end)
-
--- BUNNY HOP ---------------------------------------------------
 
 RunService.RenderStepped:Connect(function()
     if BunnyHop then
@@ -205,13 +288,38 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- UI ----------------------------------------------------------
-
 MainTab:CreateToggle({
     Name = "Enable Flick",
-    CurrentValue = false,
+    CurrentValue = FlickEnabled,
     Callback = function(v)
         FlickEnabled = v
+    end
+})
+
+MainTab:CreateToggle({
+    Name = "Enable Aimbot",
+    CurrentValue = AimbotEnabled,
+    Callback = function(v)
+        AimbotEnabled = v
+    end
+})
+
+MainTab:CreateSlider({
+    Name = "Aimbot FOV",
+    Range = {20, 300},
+    Increment = 5,
+    CurrentValue = AimbotFOV,
+    Callback = function(v)
+        AimbotFOV = v
+    end
+})
+
+MainTab:CreateToggle({
+    Name = "Show FOV Circle",
+    CurrentValue = ShowAimbotFOV,
+    Callback = function(v)
+        ShowAimbotFOV = v
+        if FOVCircle then FOVCircle.Visible = v end
     end
 })
 
@@ -247,7 +355,7 @@ MainTab:CreateSlider({
 
 MainTab:CreateToggle({
     Name = "Wall Check",
-    CurrentValue = true,
+    CurrentValue = WallCheck,
     Callback = function(v)
         WallCheck = v
     end
@@ -255,7 +363,7 @@ MainTab:CreateToggle({
 
 ESPTab:CreateToggle({
     Name = "Highlight ESP",
-    CurrentValue = false,
+    CurrentValue = HighlightESP,
     Callback = function(v)
         HighlightESP = v
         updateESP()
@@ -264,7 +372,7 @@ ESPTab:CreateToggle({
 
 HBTab:CreateToggle({
     Name = "Enable Hitbox",
-    CurrentValue = false,
+    CurrentValue = HitboxEnabled,
     Callback = function(v)
         HitboxEnabled = v
     end
@@ -282,7 +390,7 @@ HBTab:CreateSlider({
 
 MiscTab:CreateToggle({
     Name = "Auto Reload",
-    CurrentValue = false,
+    CurrentValue = AutoReload,
     Callback = function(v)
         AutoReload = v
     end
@@ -290,15 +398,13 @@ MiscTab:CreateToggle({
 
 MiscTab:CreateToggle({
     Name = "Bunny Hop",
-    CurrentValue = false,
+    CurrentValue = BunnyHop,
     Callback = function(v)
         BunnyHop = v
     end
 })
 
--- CREDIT TAB --------------------------------------------------
-
 CreditTab:CreateLabel("Zenith Hub")
 CreditTab:CreateLabel("Made by aezrt")
-CreditTab:CreateLabel("Tiktok: aezrt_")
+CreditTab:CreateLabel("TikTok: aezrt_")
 CreditTab:CreateLabel("Thanks for using Zenith Hub!")
